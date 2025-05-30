@@ -1,13 +1,48 @@
 import streamlit as st
-from transformers import pipeline
+import joblib
+import nltk
+import re
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
 
-# Page configuration
-st.set_page_config(
-    page_title="Fake News Detection",
-    layout="centered"
-)
+# Setup
+ps = PorterStemmer()
+nltk.data.path.append('./nltk_data')
+nltk.download('stopwords', download_dir='./nltk_data')
 
-# Custom CSS for clean layout
+# Page config
+st.set_page_config(page_title="Fake News Detection", layout="centered")
+
+# Load model/vectorizer
+@st.cache_resource
+def load_model_and_vectorizer():
+    model = joblib.load("model.pkl")
+    tfidfvect = joblib.load("tfidfvect.pkl")
+    return model, tfidfvect
+
+model, tfidfvect = load_model_and_vectorizer()
+
+# Define prediction class
+class PredictionModel:
+    def __init__(self, original_text):
+        self.output = {'original': original_text}
+
+    def preprocess(self):
+        review = re.sub('[^a-zA-Z]', ' ', self.output['original'])
+        review = review.lower().split()
+        review = [ps.stem(word) for word in review if word not in stopwords.words('english')]
+        cleaned_text = ' '.join(review)
+        self.output['preprocessed'] = cleaned_text
+        return cleaned_text
+
+    def predict(self):
+        review = self.preprocess()
+        text_vect = tfidfvect.transform([review]).toarray()
+        prediction = model.predict(text_vect)[0]
+        self.output['prediction'] = 'FAKE' if prediction == 0 else 'REAL'
+        return self.output
+
+# Custom CSS
 st.markdown("""
     <style>
         .main {
@@ -35,19 +70,10 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Header
+# UI Layout
 st.markdown("<h1>Fake News Detection</h1>", unsafe_allow_html=True)
-st.write("This application predict whether a news article is real or fake.")
+st.write("This application predicts whether a news article is real or fake using a traditional ML model.")
 
-# Load model
-@st.cache_resource
-def load_model():
-    MODEL = "jy46604790/Fake-News-Bert-Detect"
-    return pipeline("text-classification", model=MODEL, tokenizer=MODEL)
-
-classifier = load_model()
-
-# Example inputs
 examples = {
     "Select an example...": "",
     "Real News Example": (
@@ -56,10 +82,7 @@ examples = {
         "booster dose of the companies’ Omicron BA.4/BA.5-adapted bivalent COVID-19 vaccine (Pfizer-BioNTech COVID-19 Vaccine, "
         "Bivalent (Original and Omicron BA.4/BA.5)). Immune responses against BA.4/BA.5 sublineages were substantially higher for "
         "those who received the bivalent vaccine compared to the companies’ original COVID-19 vaccine, with a similar safety and "
-        "tolerability profile between both vaccines. These results reinforce the previously reported early clinical data measured 7 "
-        "days after a booster dose of the bivalent vaccine, as well as the pre-clinical data, and suggest that a 30-µg booster dose of "
-        "the Omicron BA.4/BA.5-adapted bivalent vaccine may induce a higher level of protection against the Omicron BA.4 and BA.5 "
-        "sublineages than the original vaccine."
+        "tolerability profile between both vaccines..."
     ),
     "Fake News Example": (
         "NASA has confirmed that the Earth will experience six days of total darkness next month due to a rare planetary alignment. "
@@ -70,34 +93,20 @@ examples = {
 }
 
 
-# UI: Example selector
-example_choice = st.selectbox("Choose an example to auto-fill the input field:", list(examples.keys()))
-input_text = st.text_area(
-    "Enter the news text below:",
-    value=examples[example_choice],
-    height=160,
-    max_chars=3000
-)
+example_choice = st.selectbox("Choose an example to auto-fill:", list(examples.keys()))
+input_text = st.text_area("Enter the news article text below:", value=examples[example_choice], height=160)
 
-# Analyze button
 if st.button("Analyze"):
     if not input_text.strip():
-        st.warning("Please enter or select some news text.")
+        st.warning("Please enter or select a news article.")
     else:
         with st.spinner("Analyzing..."):
-            # Truncate to 500 words as per model limit
-            truncated_text = " ".join(input_text.strip().split()[:500])
-            result = classifier(truncated_text)[0]
-            label = result["label"]
-            score = result["score"]
-
+            predictor = PredictionModel(input_text)
+            result = predictor.predict()
         st.markdown("#### Prediction Result")
-        if label == "LABEL_0":
-            st.error(f"The text is likely **Fake News**. Confidence: {score:.2f}")
-        elif label == "LABEL_1":
-            st.success(f"The text is likely **Real News**. Confidence: {score:.2f}")
+        if result["prediction"] == "FAKE":
+            st.error(f"The text is likely **Fake News**.")
         else:
-            st.warning(f"Unexpected label: {label}")
-
-
-st.markdown("</div>", unsafe_allow_html=True)
+            st.success(f"The text is likely **Real News**.")
+        st.markdown("##### Preprocessed Text")
+        st.code(result["preprocessed"])
