@@ -24,22 +24,35 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: us-east-1
 
+    - name: Debug AWS identity
+      run: aws sts get-caller-identity
+
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Build, tag, and push Docker image
+    - name: Debug ECR login output
+      run: |
+        echo "ECR registry: ${{ steps.login-ecr.outputs.registry }}"
+
+    - name: Build, tag, and push Docker image to ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: fake-news-detection
         IMAGE_TAG: latest
       run: |
+        echo "Building Docker image..."
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        echo "Docker image built successfully."
+        echo "Pushing Docker image to ECR..."
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        echo "Docker image pushed successfully."
 
     - name: Update ECS service
       run: |
+        echo "Updating ECS service..."
         aws ecs update-service \
-          --cluster fake-news-cluster-docker \
+          --cluster arn:aws:ecs:us-east-1:699920906948:cluster/fake-news-cluster-docker \
           --service fake-news-service \
           --force-new-deployment
+        echo "ECS service updated."
