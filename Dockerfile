@@ -4,7 +4,7 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
-# Install system packages and ngrok dependencies
+# Install system dependencies and tools
 RUN apt-get update && apt-get install -y \
     gcc curl unzip && \
     rm -rf /var/lib/apt/lists/*
@@ -12,9 +12,6 @@ RUN apt-get update && apt-get install -y \
 # Install ngrok
 RUN curl -s https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip -o ngrok.zip && \
     unzip ngrok.zip && mv ngrok /usr/local/bin/ngrok && rm ngrok.zip
-
-# Add ngrok authtoken
-RUN ngrok config add-authtoken 2xrv3USJiIwB4XjqbIDWYhtxYT8_2XFcUXgWoYejthqwfN1th
 
 # Copy and install Python dependencies
 COPY requirements.txt ./
@@ -29,7 +26,5 @@ COPY tfidfvect.pkl ./
 # Expose Streamlit port
 EXPOSE 8501
 
-# Start Streamlit and ngrok in parallel
-CMD streamlit run app.py --server.port=8501 --server.address=0.0.0.0 & \
-    sleep 5 && \
-    ngrok http 8501 --log=stdout
+# Start Streamlit and ngrok tunnel with authtoken in one command
+CMD ["sh", "-c", "streamlit run app.py --server.port=8501 --server.address=0.0.0.0 & sleep 5 && ngrok config add-authtoken 2xrv3USJiIwB4XjqbIDWYhtxYT8_2XFcUXgWoYejthqwfN1th && ngrok http 8501 --log=stdout"]
