@@ -8,7 +8,7 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    environment: AWS_ACCESS_KEY_ID  
+    environment: AWS_ACCESS_KEY_ID
 
     steps:
     - name: Checkout code
@@ -32,27 +32,24 @@ jobs:
       uses: aws-actions/amazon-ecr-login@v1
 
     - name: Debug ECR login output
-      run: |
-        echo "ECR registry: ${{ steps.login-ecr.outputs.registry }}"
+      run: echo "ECR registry: ${{ steps.login-ecr.outputs.registry }}"
 
-    - name: Build, tag, and push Docker image to ECR
+    - name: Build, tag, and push Docker image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: fake-news-detection
         IMAGE_TAG: latest
       run: |
-        echo "Building Docker image..."
+        echo "Building image..."
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        echo "Docker image built successfully."
-        echo "Pushing Docker image to ECR..."
+        echo "Pushing image to ECR..."
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        echo "Docker image pushed successfully."
 
     - name: Update ECS service
       run: |
         echo "Updating ECS service..."
         aws ecs update-service \
-          --cluster arn:aws:ecs:us-east-1:699920906948:cluster/fake-news-cluster-docker \
-          --service fake-news-service \
+          --cluster fake-news-cluster-docker \
+          --service fake-news-task-service-1pm7l63b \
           --force-new-deployment
         echo "ECS service updated."
