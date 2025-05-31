@@ -32,10 +32,11 @@ This is a lightweight, production-ready web application built with **Streamlit**
 ```
 .
 ├── app.py               # Main Streamlit app
-├── model.pkl            # Trained classification model (e.g., LogisticRegression)
+├── model.pkl            # Trained classification model
+├── Dockerfile           # Container
 ├── tfidfvect.pkl        # Trained TfidfVectorizer
 ├── requirements.txt     # Dependencies
-├── nltk_data/           # Optional NLTK data folder (stopwords)
+├── nltk_data/           # NLTK data folder 
 └── README.md
 ```
 
