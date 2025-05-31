@@ -4,23 +4,32 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system packages and ngrok dependencies
 RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+    gcc curl unzip && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and NLTK data
-COPY requirements.txt .
+# Install ngrok
+RUN curl -s https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-amd64.zip -o ngrok.zip && \
+    unzip ngrok.zip && mv ngrok /usr/local/bin/ngrok && rm ngrok.zip
+
+# Add ngrok authtoken
+RUN ngrok config add-authtoken 2xrv3USJiIwB4XjqbIDWYhtxYT8_2XFcUXgWoYejthqwfN1th
+
+# Copy and install Python dependencies
+COPY requirements.txt ./
 COPY nltk_data ./nltk_data
-
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code and model files
-COPY app.py .
-COPY model.pkl .
-COPY tfidfvect.pkl .
+COPY app.py ./
+COPY model.pkl ./
+COPY tfidfvect.pkl ./
 
 # Expose Streamlit port
-EXPOSE 80
-CMD ["streamlit", "run", "app.py", "--server.port=80", "--server.address=0.0.0.0"]
+EXPOSE 8501
+
+# Start Streamlit and ngrok in parallel
+CMD streamlit run app.py --server.port=8501 --server.address=0.0.0.0 & \
+    sleep 5 && \
+    ngrok http 8501 --log=stdout
