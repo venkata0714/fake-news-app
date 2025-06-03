@@ -98,7 +98,7 @@ input_text = st.text_area("Enter the news article text below:", value=examples[e
 
 if st.button("Analyze"):
     if not input_text.strip():
-        st.warning("Please enter:")
+        st.warning("Please enter or select a news article.")
     else:
         with st.spinner("Analyzing..."):
             predictor = PredictionModel(input_text)
